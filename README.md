@@ -30,6 +30,14 @@ cd public/
 php -S localhost:8888
 ```
 
+### VSCode
+
+Recommended VSCode extensions:
+
+-   [PHP Intelephense](https://marketplace.visualstudio.com/items?itemName=bmewburn.vscode-intelephense-client)
+-   [PHP Namespace Resolver](https://marketplace.visualstudio.com/items?itemName=MehediDracula.php-namespace-resolver)
+-   [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug)
+
 ### Using the Debugger in VSCode
 
 Install VSCode's [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
@@ -88,7 +96,9 @@ This uses [Pest](https://pestphp.com/) for unit and features tests. The Pest fra
 Here is how you can run the tests:
 
 ```shell
-./vendor/bin/pest
+composer test
 ```
+
+See the "ExampleTest.php" files for examples on writing tests.
 
 Alternatively, you can launch Pest from the VSCode debugger.

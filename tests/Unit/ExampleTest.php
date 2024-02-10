@@ -1,5 +1,7 @@
 <?php
 
-test('example', function () {
-    expect(true)->toBeTrue();
+use App\Example;
+
+test('test() should return the string "test"', function () {
+    expect(Example::test())->toBe('test');
 });
