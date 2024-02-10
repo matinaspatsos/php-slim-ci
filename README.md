@@ -7,6 +7,11 @@
 -   [Composer](https://getcomposer.org/)
 -   [Pest Testing Framework](https://pestphp.com/)
 
+CI/CD:
+
+-   [Concourse CI](https://concourse-ci.org/)
+-   [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+
 ## Getting Started
 
 Install PHP. With macOS [Homebrew](https://brew.sh/):
@@ -102,3 +107,15 @@ composer test
 See the "ExampleTest.php" files for examples on writing tests.
 
 Alternatively, you can launch Pest from the VSCode debugger.
+
+## CI / CD
+
+For a tutorial on getting started, see [Concourse CI CD pipeline](https://medium.com/@knoldus/concourse-ci-cd-pipeline-702f46fd7b2a)
+
+To build the pipeline:
+
+```shell
+fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml
+fly -t tutorial unpause-pipeline -p php-slim
+fly -t example destroy-pipeline -p php-slim
+```

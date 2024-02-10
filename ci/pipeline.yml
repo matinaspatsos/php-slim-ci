@@ -1,0 +1,47 @@
+# Examples
+# https://concourse-ci.org/nodejs-example.html
+
+resources:
+  - name: repo
+    type: git
+    source:
+      # TODO use private repo
+      uri: https://github.com/matinaspatsos/php-slim-ci.git
+      branch: concourse
+  # TODO get an image where you can lock php version and install any needed dependencies
+  - name: composer-image
+    type: registry-image
+    source:
+      repository: composer
+      tag: 2
+
+jobs:
+  - name: unit-test
+    plan:
+      - get: repo
+      - get: composer-image
+      - task: install
+        image: composer-image
+        config:
+          platform: linux
+          inputs:
+            - name: repo
+          outputs:
+            - name: dependencies
+              path: repo/vendor
+          run:
+            path: composer
+            args: ["install", "--no-interaction", "-o"]
+            dir: repo
+      - task: test
+        image: composer-image
+        config:
+          platform: linux
+          inputs:
+            - name: repo
+            - name: dependencies
+              path: repo/vendor
+          run:
+            path: composer
+            args: ["test"]
+            dir: repo
