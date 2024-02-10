@@ -43,6 +43,11 @@ Recommended VSCode extensions:
 -   [PHP Namespace Resolver](https://marketplace.visualstudio.com/items?itemName=MehediDracula.php-namespace-resolver)
 -   [PHP Debug](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug)
 
+For CI/CD:
+
+-   [Docker](https://code.visualstudio.com/docs/containers/overview)
+-   [Concourse CI Pipeline Editor](https://marketplace.visualstudio.com/items?itemName=vmware.vscode-concourse)
+
 ### Using the Debugger in VSCode
 
 Install VSCode's [PHP Debug extension](https://marketplace.visualstudio.com/items?itemName=xdebug.php-debug).
@@ -110,12 +115,41 @@ Alternatively, you can launch Pest from the VSCode debugger.
 
 ## CI / CD
 
+### Docker image used in the pipeline
+
+It's a TODO to add this to a pipeline. Here's how to build the Docker build image for now:
+
+```shell
+cd ci/
+docker build -t matinapatsos/php-composer:latest .
+docker login --username=matinapatsos
+docker push matinapatsos/php-composer:latest
+```
+
+### Concourse CI
+
 For a tutorial on getting started, see [Concourse CI CD pipeline](https://medium.com/@knoldus/concourse-ci-cd-pipeline-702f46fd7b2a)
 
 To build the pipeline:
 
 ```shell
+# From the directory root
 fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml
+```
+
+To unpause the pipeline:
+
+```shell
 fly -t tutorial unpause-pipeline -p php-slim
+```
+
+To destroy the pipeline:
+
+```shell
 fly -t example destroy-pipeline -p php-slim
 ```
+
+Misc examples:
+
+-   https://concourse-ci.org/building-and-pushing-an-image.html
+-   https://concourse-ci.org/building-an-image-and-using-it-in-a-task.html

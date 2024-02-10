@@ -12,8 +12,7 @@ resources:
   - name: composer-image
     type: registry-image
     source:
-      repository: composer
-      tag: 2
+      repository: matinapatsos/php-composer
 
 jobs:
   - name: unit-test
