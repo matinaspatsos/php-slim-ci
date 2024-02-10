@@ -4,9 +4,17 @@
         "slim/slim": "^4.12",
         "slim/psr7": "^1.6"
     },
+    "require-dev": {
+        "pestphp/pest": "^2.33"
+    },
     "autoload": {
         "psr-4": {
             "App\\": "src/"
+        }
+    },
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
         }
     }
 }

@@ -5,6 +5,7 @@
 -   PHP (see version in composer.json)
 -   [Slim Framework](https://www.slimframework.com/)
 -   [Composer](https://getcomposer.org/)
+-   [Pest Testing Framework](https://pestphp.com/)
 
 ## Getting Started
 
@@ -79,3 +80,15 @@ Tracing => ✘ disabled
 ```
 
 You can now use the [debugger and breakpoints in VSCode](https://code.visualstudio.com/docs/editor/debugging).
+
+## Tests
+
+This uses [Pest](https://pestphp.com/) for unit and features tests. The Pest framework is built on-top of PHPUnit.
+
+Here is how you can run the tests:
+
+```shell
+./vendor/bin/pest
+```
+
+Alternatively, you can launch Pest from the VSCode debugger.

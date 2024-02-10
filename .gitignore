@@ -1,8 +1,8 @@
 # Added to default template:
 phpinfo.php
 
-# Created by https://www.toptal.com/developers/gitignore/api/linux,macos,windows,composer,visualstudiocode
-# Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,windows,composer,visualstudiocode
+# Created by https://www.toptal.com/developers/gitignore/api/linux,macos,windows,composer,visualstudiocode,phpunit
+# Edit at https://www.toptal.com/developers/gitignore?templates=linux,macos,windows,composer,visualstudiocode,phpunit
 
 ### Composer ###
 composer.phar
@@ -60,6 +60,17 @@ Temporary Items
 # iCloud generated files
 *.icloud
 
+### PHPUnit ###
+# Covers PHPUnit
+# Reference: https://phpunit.de/
+
+# Generated files
+.phpunit.result.cache
+.phpunit.cache
+
+# Build data
+/build/
+
 ### VisualStudioCode ###
 .vscode/*
 !.vscode/settings.json
@@ -105,4 +116,4 @@ $RECYCLE.BIN/
 # Windows shortcuts
 *.lnk
 
-# End of https://www.toptal.com/developers/gitignore/api/linux,macos,windows,composer,visualstudiocode
+# End of https://www.toptal.com/developers/gitignore/api/linux,macos,windows,composer,visualstudiocode,phpunit
