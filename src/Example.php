@@ -8,7 +8,11 @@ class Example
   {
     return "test";
   }
-  public function triggerCiCd(): void
+  public function sastFinding()
   {
+    $password = "1234";
+    $offset = $_GET['offset']; // beware, no input validation!
+    $query  = "SELECT id, name FROM products ORDER BY name LIMIT 20 OFFSET $offset;";
+    $result = pg_query($conn, $query);
   }
 }
