@@ -28,15 +28,23 @@ resources:
 
 jobs:
   - name: build-ci-image
+    # On serial groups: https://concourse-ci.org/jobs.html
+    serial_groups:
+      - unit-test
+      - sast-scan
     plan:
       - get: repo
       - put: ci-image
         params:
           build: repo/ci
   - name: unit-test
+    serial_groups:
+      - unit-test
     plan:
       - get: repo
+        trigger: true
       - get: ci-image
+        trigger: true
       - task: install
         image: ci-image
         config:
@@ -63,8 +71,11 @@ jobs:
             args: ["test"]
             dir: repo
   - name: sast-scan
+    serial_groups:
+      - sast-scan
     plan:
       - get: repo
+        trigger: true
       - get: bearer-sast-image
       - task: scan
         image: bearer-sast-image
@@ -78,8 +89,14 @@ jobs:
             args: ["scan", "/tmp/scan", "--debug"]
   # TODO Nginx build
   - name: build-php
+    serial_groups:
+      - unit-test
+      - sast-scan
     plan:
       - get: repo
+        passed:
+          - unit-test
+          - sast-scan
       - put: app-php-image
         params:
           build: repo/ci

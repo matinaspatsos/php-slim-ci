@@ -131,7 +131,6 @@ For a tutorial on getting started, see [Concourse CI CD pipeline](https://medium
 To build the pipeline:
 
 ```shell
-# From the directory root
 fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml -l ci/config.yml
 ```
 
