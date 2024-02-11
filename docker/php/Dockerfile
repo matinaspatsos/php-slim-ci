@@ -25,7 +25,7 @@ RUN apt update -y \
   # Required for composer
   && apt install -y git unzip
 
-COPY composer.* /build
+COPY composer.* /build/
 
 RUN composer install --no-interaction --no-progress -o --no-dev
 
