@@ -94,9 +94,12 @@ jobs:
       - sast-scan
     plan:
       - get: repo
+        tigger: true
         passed:
           - unit-test
           - sast-scan
       - put: app-php-image
         params:
-          build: repo/ci
+          build: repo
+          dockerfile: repo/docker/php/Dockerfile
+          # TODO tag with versioning
