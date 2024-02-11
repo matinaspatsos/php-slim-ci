@@ -1,24 +1,47 @@
+# See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
+resource_types:
+  - name: pull-request
+    type: docker-image
+    source:
+      repository: teliaoss/github-pr-resource
+
 resources:
   - name: git-dev-commit
     type: git
+    icon: source-branch
     source:
       # TODO use private repo
-      uri: https://github.com/matinaspatsos/php-slim-ci.git
+      uri: https://github.com/((github-repo)).git
       branch: dev
+  # See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
+  # See https://www.youtube.com/watch?v=6dbcRfZ94oo
+  - name: git-dev-pr
+    type: pull-request
+    icon: source-pull
+    check_every: 2m
+    source:
+      repository: ((github-repo))
+      base_branch: dev
+      access_token: ((github-access-token))
   - name: ecr-app-php-image
     type: docker-image
+    icon: docker
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ecr-repo))
   - name: ecr-ci-task-image
     type: docker-image
+    icon: docker
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
 
 jobs:
+  #
+  # Prereq Jobs
+  #
   # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
   - name: build-ci-task-image
     serial: true
@@ -27,6 +50,21 @@ jobs:
       - put: ecr-ci-task-image
         params:
           build: git-dev-commit/ci
+  #
+  # Dev PR Jobs
+  #
+  - name: check-pr
+    plan:
+      - get: git-dev-pr
+        trigger: true
+        version: every
+      - put: git-dev-pr
+        params:
+          path: git-dev-pr
+          status: pending
+  #
+  # Dev Commit Jobs
+  #
   # See https://concourse-ci.org/nodejs-example.html
   - name: unit-test
     # On serial groups: https://concourse-ci.org/jobs.html

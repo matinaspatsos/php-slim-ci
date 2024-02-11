@@ -115,7 +115,18 @@ Alternatively, you can launch Pest from the VSCode debugger.
 
 ## CI / CD
 
-### AWS resources for the pipeline so far
+### Pipeline Outside Resources
+
+#### Github
+
+-   Github repo
+-   A personal access token with access to the Github repo and these permissions:
+    -   Content read-write
+    -   Commit status read-write
+    -   Pull request read-write
+    -   Metadata read-only
+
+#### AWS
 
 -   IAM user group _ConcourseCi_ with _EC2InstanceProfileForImageBuilderECRContainerBuilds_ policy attached
 -   IAM user with access key
