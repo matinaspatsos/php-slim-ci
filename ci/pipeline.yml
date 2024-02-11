@@ -1,105 +1,103 @@
-# Examples
-# https://concourse-ci.org/nodejs-example.html
-
 resources:
-  - name: repo
+  - name: git-dev-commit
     type: git
     source:
       # TODO use private repo
       uri: https://github.com/matinaspatsos/php-slim-ci.git
-      branch: concourse
-  # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
-  - name: app-php-image
+      branch: dev
+  - name: ecr-app-php-image
     type: docker-image
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ecr-repo))
-  - name: ci-image
+  - name: ecr-ci-task-image
     type: docker-image
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
-  - name: bearer-sast-image
-    type: docker-image
-    source:
-      repository: bearer/bearer
 
 jobs:
-  - name: build-ci-image
+  # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
+  - name: build-ci-task-image
+    serial: true
+    plan:
+      - get: git-dev-commit
+      - put: ecr-ci-task-image
+        params:
+          build: git-dev-commit/ci
+  # See https://concourse-ci.org/nodejs-example.html
+  - name: unit-test
     # On serial groups: https://concourse-ci.org/jobs.html
     serial_groups:
       - unit-test
-      - sast-scan
     plan:
-      - get: repo
-      - put: ci-image
-        params:
-          build: repo/ci
-  - name: unit-test
-    serial_groups:
-      - unit-test
-    plan:
-      - get: repo
+      - get: git-dev-commit
         trigger: true
-      - get: ci-image
+      - get: ecr-ci-task-image
         trigger: true
       - task: install
-        image: ci-image
+        image: ecr-ci-task-image
         config:
           platform: linux
           inputs:
-            - name: repo
+            - name: git-dev-commit
           outputs:
             - name: dependencies
-              path: repo/vendor
+              path: git-dev-commit/vendor
           run:
             path: composer
             args: ["install", "--no-interaction"]
-            dir: repo
+            dir: git-dev-commit
       - task: test
-        image: ci-image
+        image: ecr-ci-task-image
         config:
           platform: linux
           inputs:
-            - name: repo
+            - name: git-dev-commit
             - name: dependencies
-              path: repo/vendor
+              path: git-dev-commit/vendor
           run:
             path: composer
             args: ["test"]
-            dir: repo
+            dir: git-dev-commit
   - name: sast-scan
+    # On serial groups: https://concourse-ci.org/jobs.html
     serial_groups:
       - sast-scan
     plan:
-      - get: repo
+      - get: git-dev-commit
         trigger: true
-      - get: bearer-sast-image
       - task: scan
-        image: bearer-sast-image
         config:
           platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: bearer/bearer
           inputs:
-            - name: repo
+            - name: git-dev-commit
               path: /tmp/scan
           run:
             path: bearer
             args: ["scan", "/tmp/scan", "--debug"]
   # TODO Nginx build
-  - name: build-php
+  # TODO versioning
+  - name: build
     serial_groups:
       - unit-test
       - sast-scan
+    # See # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
     plan:
-      - get: repo
-        tigger: true
+      - get: git-dev-commit
+        trigger: true
         passed:
           - unit-test
           - sast-scan
-      - put: app-php-image
+      - put: ecr-app-php-image
+        # See https://github.com/concourse/docker-image-resource
         params:
-          build: repo
-          dockerfile: repo/docker/php/Dockerfile
+          build: git-dev-commit
+          dockerfile: git-dev-commit/docker/php/Dockerfile
           # TODO tag with versioning
