@@ -9,6 +9,12 @@ resources:
       uri: https://github.com/matinaspatsos/php-slim-ci.git
       branch: concourse
   # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
+  - name: app-php-image
+    type: docker-image
+    source:
+      aws_access_key_id: ((aws-token))
+      aws_secret_access_key: ((aws-secret))
+      repository: ((php-slim-ecr-repo))
   - name: ci-image
     type: docker-image
     source:
@@ -42,7 +48,7 @@ jobs:
               path: repo/vendor
           run:
             path: composer
-            args: ["install", "--no-interaction", "-o"]
+            args: ["install", "--no-interaction"]
             dir: repo
       - task: test
         image: ci-image
@@ -70,3 +76,10 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan", "--debug"]
+  # TODO Nginx build
+  - name: build-php
+    plan:
+      - get: repo
+      - put: app-php-image
+        params:
+          build: repo/ci

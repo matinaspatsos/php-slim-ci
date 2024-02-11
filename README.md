@@ -120,10 +120,11 @@ Alternatively, you can launch Pest from the VSCode debugger.
 -   IAM user group _ConcourseCi_ with _EC2InstanceProfileForImageBuilderECRContainerBuilds_ policy attached
 -   IAM user with access key
 -   ECR private registry called _concourse-php-slim-ci_
-
-Before using the pipeline, save _ci/config.yml.example_ as _ci/config.yml_ and plugin the AWS values.
+-   ECR private registry called _php-slim_
 
 ### Concourse CI
+
+Before using the pipeline, save _ci/config.yml.example_ as _ci/config.yml_ and plugin the AWS values.
 
 For a tutorial on getting started, see [Concourse CI CD pipeline](https://medium.com/@knoldus/concourse-ci-cd-pipeline-702f46fd7b2a)
 

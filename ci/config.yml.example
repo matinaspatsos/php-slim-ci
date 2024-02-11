@@ -4,3 +4,4 @@ aws-secret: _____
 
 # ECR
 php-slim-ci-ecr-repo: _____
+php-slim-ecr-repo: _____
