@@ -15,6 +15,10 @@ resources:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
+  - name: bearer-sast-image
+    type: docker-image
+    source:
+      repository: bearer/bearer
 
 jobs:
   - name: build-ci-image
@@ -52,3 +56,17 @@ jobs:
             path: composer
             args: ["test"]
             dir: repo
+  - name: sast-scan
+    plan:
+      - get: repo
+      - get: bearer-sast-image
+      - task: scan
+        image: bearer-sast-image
+        config:
+          platform: linux
+          inputs:
+            - name: repo
+              path: /tmp/scan
+          run:
+            path: bearer
+            args: ["scan", "/tmp/scan", "--debug"]
