@@ -115,16 +115,13 @@ Alternatively, you can launch Pest from the VSCode debugger.
 
 ## CI / CD
 
-### Docker image used in the pipeline
+### AWS resources for the pipeline so far
 
-It's a TODO to add this to a pipeline. Here's how to build the Docker build image for now:
+-   IAM user group _ConcourseCi_ with _EC2InstanceProfileForImageBuilderECRContainerBuilds_ policy attached
+-   IAM user with access key
+-   ECR private registry called _concourse-php-slim-ci_
 
-```shell
-cd ci/
-docker build -t matinapatsos/php-composer:latest .
-docker login --username=matinapatsos
-docker push matinapatsos/php-composer:latest
-```
+Before using the pipeline, save _ci/config.yml.example_ as _ci/config.yml_ and plugin the AWS values.
 
 ### Concourse CI
 
@@ -134,7 +131,7 @@ To build the pipeline:
 
 ```shell
 # From the directory root
-fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml
+fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml -l ci/config.yml
 ```
 
 To unpause the pipeline:

@@ -1,0 +1,6 @@
+# AWS auth
+aws-token: _____
+aws-secret: _____
+
+# ECR
+php-slim-ci-ecr-repo: _____

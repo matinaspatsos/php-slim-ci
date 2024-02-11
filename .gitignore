@@ -1,4 +1,6 @@
 # Added to default template:
+/ci/config.yml
+fly
 phpinfo.php
 
 # Created by https://www.toptal.com/developers/gitignore/api/linux,macos,windows,composer,visualstudiocode,phpunit

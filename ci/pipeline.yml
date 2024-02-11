@@ -8,19 +8,27 @@ resources:
       # TODO use private repo
       uri: https://github.com/matinaspatsos/php-slim-ci.git
       branch: concourse
-  # TODO get an image where you can lock php version and install any needed dependencies
-  - name: composer-image
-    type: registry-image
+  # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
+  - name: ci-image
+    type: docker-image
     source:
-      repository: matinapatsos/php-composer
+      aws_access_key_id: ((aws-token))
+      aws_secret_access_key: ((aws-secret))
+      repository: ((php-slim-ci-ecr-repo))
 
 jobs:
+  - name: build-ci-image
+    plan:
+      - get: repo
+      - put: ci-image
+        params:
+          build: repo/ci
   - name: unit-test
     plan:
       - get: repo
-      - get: composer-image
+      - get: ci-image
       - task: install
-        image: composer-image
+        image: ci-image
         config:
           platform: linux
           inputs:
@@ -33,7 +41,7 @@ jobs:
             args: ["install", "--no-interaction", "-o"]
             dir: repo
       - task: test
-        image: composer-image
+        image: ci-image
         config:
           platform: linux
           inputs:
