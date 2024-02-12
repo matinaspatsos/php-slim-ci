@@ -4,6 +4,9 @@ namespace App;
 
 class Example
 {
+  public function testCiCd()
+  {
+  }
   public static function test(): string
   {
     return "test";
