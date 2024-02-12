@@ -44,7 +44,8 @@ jobs:
   #
   # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
   - name: build-ci-task-image
-    serial: true
+    serial_groups:
+      - unit-test
     plan:
       - get: git-dev-commit
       - put: ecr-ci-task-image
@@ -53,10 +54,8 @@ jobs:
   #
   # Dev PR Jobs
   #
-  - name: unit-test-pr
-    serial: true
+  - name: start-checks-pr
     plan:
-      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
       - get: git-dev-pr
         trigger: true
         version: every
@@ -64,6 +63,19 @@ jobs:
         params:
           path: git-dev-pr
           status: pending
+  - name: unit-test-pr
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
+    plan:
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
+        trigger: true
+        version: every
+        passed:
+          - start-checks-pr
       - get: ecr-ci-task-image
       - task: install
         image: ecr-ci-task-image
@@ -90,24 +102,21 @@ jobs:
             path: composer
             args: ["test"]
             dir: git-dev-pr
-        on_failure:
-          put: git-dev-pr
-          params:
-            path: git-dev-pr
-            status: failure
   - name: sast-scan-pr
-    serial: true
+    serial_groups:
+      - sast-scan
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
     plan:
       # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
       - get: git-dev-pr
         trigger: true
         version: every
         passed:
-          - unit-test-pr
-      - put: git-dev-pr
-        params:
-          path: git-dev-pr
-          status: pending
+          - start-checks-pr
       - task: scan
         config:
           platform: linux
@@ -121,11 +130,35 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan"]
-        on_failure:
-          put: git-dev-pr
-          params:
-            path: git-dev-pr
-            status: failure
+  # TODO Nginx build
+  - name: build-pr
+    serial_groups:
+      - unit-test
+      - sast-scan
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
+    on_success:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: success
+    plan:
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
+        trigger: true
+        version: every
+        passed:
+          - unit-test-pr
+          - sast-scan-pr
+      - put: ecr-app-php-image
+        # See https://github.com/concourse/docker-image-resource
+        params:
+          build: git-dev-pr
+          dockerfile: git-dev-pr/docker/php/Dockerfile
+    # TODO tag with versioning
   #
   # Dev Commit Jobs
   #
@@ -185,7 +218,6 @@ jobs:
             path: bearer
             args: ["scan", "/tmp/scan"]
   # TODO Nginx build
-  # TODO versioning
   - name: build
     serial_groups:
       - unit-test
