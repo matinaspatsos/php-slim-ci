@@ -6,7 +6,7 @@ class Example
 {
   public function testCiCd(): string
   {
-    return "Wat???";
+    return "Wat?";
   }
   public static function test(): string
   {
