@@ -4,6 +4,9 @@ namespace App;
 
 class Example
 {
+  public function triggerCiCd(): void
+  {
+  }
   public function sastFinding()
   {
     $password = "1234";
