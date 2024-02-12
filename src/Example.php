@@ -4,13 +4,6 @@ namespace App;
 
 class Example
 {
-  public static function test(): string
-  {
-    return "test";
-  }
-  public function testCiCd()
-  {
-  }
   public function sastFinding()
   {
     $password = "1234";
