@@ -9,7 +9,7 @@ class Example
   }
   public static function test(): string
   {
-    return "test will fail";
+    return "test";
   }
   public function sastFinding()
   {
