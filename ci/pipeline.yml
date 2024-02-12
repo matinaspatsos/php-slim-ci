@@ -53,8 +53,10 @@ jobs:
   #
   # Dev PR Jobs
   #
-  - name: check-pr
+  - name: unit-test-pr
+    serial: true
     plan:
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
       - get: git-dev-pr
         trigger: true
         version: every
@@ -62,6 +64,68 @@ jobs:
         params:
           path: git-dev-pr
           status: pending
+      - get: ecr-ci-task-image
+      - task: install
+        image: ecr-ci-task-image
+        config:
+          platform: linux
+          inputs:
+            - name: git-dev-pr
+          outputs:
+            - name: dependencies
+              path: git-dev-pr/vendor
+          run:
+            path: composer
+            args: ["install", "--no-interaction"]
+            dir: git-dev-pr
+      - task: test
+        image: ecr-ci-task-image
+        config:
+          platform: linux
+          inputs:
+            - name: git-dev-pr
+            - name: dependencies
+              path: git-dev-pr/vendor
+          run:
+            path: composer
+            args: ["test"]
+            dir: git-dev-pr
+        on_failure:
+          put: git-dev-pr
+          params:
+            path: git-dev-pr
+            status: failure
+  - name: sast-scan-pr
+    serial: true
+    plan:
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
+        trigger: true
+        version: every
+        passed:
+          - unit-test-pr
+      - put: git-dev-pr
+        params:
+          path: git-dev-pr
+          status: pending
+      - task: scan
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: bearer/bearer
+          inputs:
+            - name: git-dev-pr
+              path: /tmp/scan
+          run:
+            path: bearer
+            args: ["scan", "/tmp/scan"]
+        on_failure:
+          put: git-dev-pr
+          params:
+            path: git-dev-pr
+            status: failure
   #
   # Dev Commit Jobs
   #
@@ -119,7 +183,7 @@ jobs:
               path: /tmp/scan
           run:
             path: bearer
-            args: ["scan", "/tmp/scan", "--debug"]
+            args: ["scan", "/tmp/scan"]
   # TODO Nginx build
   # TODO versioning
   - name: build
