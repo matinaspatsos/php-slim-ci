@@ -4,8 +4,9 @@ namespace App;
 
 class Example
 {
-  public function triggerCiCd(): void
+  public static function test(): string
   {
+    return "test";
   }
   public function sastFinding()
   {
