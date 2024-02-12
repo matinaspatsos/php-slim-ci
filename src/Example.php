@@ -8,6 +8,9 @@ class Example
   {
     return "test";
   }
+  public function testCiCd()
+  {
+  }
   public function sastFinding()
   {
     $password = "1234";
