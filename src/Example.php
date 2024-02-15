@@ -8,4 +8,8 @@ class Example
   {
     return "test";
   }
+  public function testPipeline(): string
+  {
+    return "Will this work?";
+  }
 }
