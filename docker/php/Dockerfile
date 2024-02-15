@@ -13,6 +13,8 @@
 # INSTALL PHP DEPENDENCIES
 #
 
+# TODO consolidate with CI image
+
 FROM php:8.3 AS installer
 
 WORKDIR /build

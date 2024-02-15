@@ -1,102 +1,237 @@
-# Examples
-# https://concourse-ci.org/nodejs-example.html
+# See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
+resource_types:
+  - name: pull-request
+    type: docker-image
+    source:
+      repository: teliaoss/github-pr-resource
 
 resources:
-  - name: repo
+  - name: git-dev-commit
     type: git
+    icon: source-branch
     source:
       # TODO use private repo
-      uri: https://github.com/matinaspatsos/php-slim-ci.git
-      branch: concourse
-  # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
-  - name: app-php-image
+      uri: https://github.com/((github-repo)).git
+      branch: dev
+  # See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
+  # See https://www.youtube.com/watch?v=6dbcRfZ94oo
+  - name: git-dev-pr
+    type: pull-request
+    icon: source-pull
+    check_every: 2m
+    source:
+      repository: ((github-repo))
+      base_branch: dev
+      access_token: ((github-access-token))
+  - name: ecr-app-php-image
     type: docker-image
+    icon: docker
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ecr-repo))
-  - name: ci-image
+  - name: ecr-ci-task-image
     type: docker-image
+    icon: docker
     source:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
-  - name: bearer-sast-image
-    type: docker-image
-    source:
-      repository: bearer/bearer
 
 jobs:
-  - name: build-ci-image
-    # On serial groups: https://concourse-ci.org/jobs.html
+  #
+  # Prereq Jobs
+  #
+  # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
+  - name: build-ci-task-image
     serial_groups:
       - unit-test
-      - sast-scan
     plan:
-      - get: repo
-      - put: ci-image
+      - get: git-dev-commit
+      - put: ecr-ci-task-image
         params:
-          build: repo/ci
-  - name: unit-test
-    serial_groups:
-      - unit-test
+          build: git-dev-commit/ci
+  #
+  # Dev PR Jobs
+  #
+  - name: start-checks-pr
     plan:
-      - get: repo
+      - get: git-dev-pr
         trigger: true
-      - get: ci-image
+        version: every
+      - put: git-dev-pr
+        params:
+          path: git-dev-pr
+          status: pending
+  - name: unit-test-pr
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
+    plan:
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
         trigger: true
+        version: every
+        passed:
+          - start-checks-pr
+      - get: ecr-ci-task-image
       - task: install
-        image: ci-image
+        image: ecr-ci-task-image
         config:
           platform: linux
           inputs:
-            - name: repo
+            - name: git-dev-pr
           outputs:
             - name: dependencies
-              path: repo/vendor
+              path: git-dev-pr/vendor
           run:
             path: composer
             args: ["install", "--no-interaction"]
-            dir: repo
+            dir: git-dev-pr
       - task: test
-        image: ci-image
+        image: ecr-ci-task-image
         config:
           platform: linux
           inputs:
-            - name: repo
+            - name: git-dev-pr
             - name: dependencies
-              path: repo/vendor
+              path: git-dev-pr/vendor
           run:
             path: composer
             args: ["test"]
-            dir: repo
-  - name: sast-scan
+            dir: git-dev-pr
+  - name: sast-scan-pr
     serial_groups:
       - sast-scan
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
     plan:
-      - get: repo
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
         trigger: true
-      - get: bearer-sast-image
+        version: every
+        passed:
+          - start-checks-pr
       - task: scan
-        image: bearer-sast-image
         config:
           platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: bearer/bearer
           inputs:
-            - name: repo
+            - name: git-dev-pr
               path: /tmp/scan
           run:
             path: bearer
-            args: ["scan", "/tmp/scan", "--debug"]
+            args: ["scan", "/tmp/scan"]
   # TODO Nginx build
-  - name: build-php
+  - name: build-pr
     serial_groups:
       - unit-test
       - sast-scan
+    on_failure:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: failure
+    on_success:
+      put: git-dev-pr
+      params:
+        path: git-dev-pr
+        status: success
     plan:
-      - get: repo
+      # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
+      - get: git-dev-pr
+        trigger: true
+        version: every
+        passed:
+          - unit-test-pr
+          - sast-scan-pr
+      - put: ecr-app-php-image
+        # See https://github.com/concourse/docker-image-resource
+        params:
+          build: git-dev-pr
+          dockerfile: git-dev-pr/docker/php/Dockerfile
+    # TODO tag with versioning
+  #
+  # Dev Commit Jobs
+  #
+  # See https://concourse-ci.org/nodejs-example.html
+  - name: unit-test
+    # On serial groups: https://concourse-ci.org/jobs.html
+    serial_groups:
+      - unit-test
+    plan:
+      - get: git-dev-commit
+        trigger: true
+      - get: ecr-ci-task-image
+        trigger: true
+      - task: install
+        image: ecr-ci-task-image
+        config:
+          platform: linux
+          inputs:
+            - name: git-dev-commit
+          outputs:
+            - name: dependencies
+              path: git-dev-commit/vendor
+          run:
+            path: composer
+            args: ["install", "--no-interaction"]
+            dir: git-dev-commit
+      - task: test
+        image: ecr-ci-task-image
+        config:
+          platform: linux
+          inputs:
+            - name: git-dev-commit
+            - name: dependencies
+              path: git-dev-commit/vendor
+          run:
+            path: composer
+            args: ["test"]
+            dir: git-dev-commit
+  - name: sast-scan
+    # On serial groups: https://concourse-ci.org/jobs.html
+    serial_groups:
+      - sast-scan
+    plan:
+      - get: git-dev-commit
+        trigger: true
+      - task: scan
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: bearer/bearer
+          inputs:
+            - name: git-dev-commit
+              path: /tmp/scan
+          run:
+            path: bearer
+            args: ["scan", "/tmp/scan"]
+  # TODO Nginx build
+  - name: build
+    serial_groups:
+      - unit-test
+      - sast-scan
+    # See # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
+    plan:
+      - get: git-dev-commit
+        trigger: true
         passed:
           - unit-test
           - sast-scan
-      - put: app-php-image
+      - put: ecr-app-php-image
+        # See https://github.com/concourse/docker-image-resource
         params:
-          build: repo/ci
+          build: git-dev-commit
+          dockerfile: git-dev-commit/docker/php/Dockerfile
+          # TODO tag with versioning

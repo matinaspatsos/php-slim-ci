@@ -115,7 +115,25 @@ Alternatively, you can launch Pest from the VSCode debugger.
 
 ## CI / CD
 
-### AWS resources for the pipeline so far
+### Pipeline Outside Resources
+
+#### Github
+
+-   Github repo
+-   A personal access token with access to the Github repo and these permissions:
+    -   Content read-write
+    -   Commit status read-write
+    -   Pull request read-write
+    -   Metadata read-only
+-   These at least these restrictions on the dev branch:
+    -   Require a pull request before merging
+    -   Require status checks to pass before merging
+    -   Require branches to be up to date before merging
+    -   Status checks required: _concourse-ci/status_
+
+![Screenshot of branch restrictions](doc/git-dev-branch-settings.png)
+
+#### AWS
 
 -   IAM user group _ConcourseCi_ with _EC2InstanceProfileForImageBuilderECRContainerBuilds_ policy attached
 -   IAM user with access key
@@ -134,10 +152,11 @@ To build the pipeline:
 fly -t tutorial set-pipeline -p php-slim -c ci/pipeline.yml -l ci/config.yml
 ```
 
-To unpause the pipeline:
+To unpause/pause the pipeline:
 
 ```shell
 fly -t tutorial unpause-pipeline -p php-slim
+fly -t tutorial pause-pipeline -p php-slim
 ```
 
 To destroy the pipeline:
