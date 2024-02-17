@@ -1,9 +1,14 @@
-# See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
 resource_types:
+  # See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
   - name: pull-request
     type: docker-image
     source:
       repository: teliaoss/github-pr-resource
+  # See https://github.com/dcsg/datetime-version-resource
+  - name: datetime-version
+    type: registry-image
+    source:
+      repository: dcsg/datetime-version-resource
 
 resources:
   - name: git-dev-commit
@@ -23,6 +28,7 @@ resources:
       repository: ((github-repo))
       base_branch: dev
       access_token: ((github-access-token))
+  # See https://github.com/concourse/docker-image-resource
   - name: ecr-app-php-image
     type: docker-image
     icon: docker
@@ -37,6 +43,13 @@ resources:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
+  # See https://github.com/dcsg/datetime-version-resource
+  - name: version-pr
+    type: datetime-version
+    icon: numeric
+    source:
+      timezone: "America/New_York"
+      format: "20060102-150405.pr"
 
 jobs:
   #
@@ -153,12 +166,17 @@ jobs:
         passed:
           - unit-test-pr
           - sast-scan-pr
+      - put: version-pr
       - put: ecr-app-php-image
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-pr
           dockerfile: git-dev-pr/docker/php/Dockerfile
-    # TODO tag with versioning
+          tag_file: version-pr/version
+      - put: git-dev-pr
+        params:
+          path: git-dev-pr
+          comment_file: version-pr/version
   #
   # Dev Commit Jobs
   #
