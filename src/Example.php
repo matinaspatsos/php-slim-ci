@@ -10,6 +10,6 @@ class Example
   }
   public function ciCdTest(): int
   {
-    return 1;
+    return 2;
   }
 }
