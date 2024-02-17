@@ -44,12 +44,12 @@ resources:
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
   # See https://github.com/dcsg/datetime-version-resource
-  - name: version-pr
+  - name: datetime
     type: datetime-version
-    icon: numeric
+    icon: clock-outline
     source:
       timezone: "America/New_York"
-      format: "20060102-150405.pr"
+      format: "20060102-150405"
 
 jobs:
   #
@@ -158,6 +158,7 @@ jobs:
       params:
         path: git-dev-pr
         status: success
+        comment_file: version-pr/version
     plan:
       # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
       - get: git-dev-pr
@@ -166,17 +167,42 @@ jobs:
         passed:
           - unit-test-pr
           - sast-scan-pr
-      - put: version-pr
+      - put: datetime
+      # See https://concourse-ci.org/tutorial-inputs-outputs.html
+      - task: version
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              # repository: alpine
+              repository: leplusorg/json
+          inputs:
+            # Writes these from other steps onto the image file system
+            - name: git-dev-pr
+            - name: datetime
+          outputs:
+            # This creates a directory that is shared with other steps
+            - name: version-pr
+          run:
+            path: sh
+            args:
+              - -cx
+              - |
+                #!/bin/sh
+                # Gets datetime from last step
+                DATETIME=$(cat datetime/version)
+                # Gets PR number from git metadata
+                PR=$(jq -r '.pr' git-dev-pr/.git/resource/version.json)
+                # Creates version file
+                /bin/echo "$DATETIME.pr-$PR" > version-pr/version
+                cat version-pr/version
       - put: ecr-app-php-image
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-pr
           dockerfile: git-dev-pr/docker/php/Dockerfile
           tag_file: version-pr/version
-      - put: git-dev-pr
-        params:
-          path: git-dev-pr
-          comment_file: version-pr/version
   #
   # Dev Commit Jobs
   #
