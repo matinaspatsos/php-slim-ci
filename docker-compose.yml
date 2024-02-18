@@ -1,0 +1,10 @@
+version: "3"
+
+services:
+  web:
+    container_name: web
+    build:
+      context: ./
+      dockerfile: ./docker/Dockerfile
+    ports:
+      - 8000:80

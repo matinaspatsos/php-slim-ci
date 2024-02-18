@@ -1,11 +1,11 @@
-FROM php:8.3
+FROM php:8.3-alpine
 
 COPY --from=composer/composer:2-bin /composer /usr/bin/composer
 
 ENV COMPOSER_ALLOW_SUPERUSER=1
 
-RUN apt update -y \
+RUN apk update \
   # Required for composer
-  && apt install -y git unzip
+  && apk add git unzip
 
 CMD ["composer"]
