@@ -156,7 +156,7 @@ jobs:
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-pr
-          dockerfile: git-dev-pr/docker/php/Dockerfile
+          dockerfile: git-dev-pr/docker/Dockerfile
     # TODO tag with versioning
   #
   # Dev Commit Jobs
@@ -231,5 +231,5 @@ jobs:
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-commit
-          dockerfile: git-dev-commit/docker/php/Dockerfile
+          dockerfile: git-dev-commit/docker/Dockerfile
           # TODO tag with versioning
