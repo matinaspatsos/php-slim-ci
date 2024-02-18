@@ -143,7 +143,6 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan"]
-  # TODO Nginx build
   - name: build-pr
     serial_groups:
       - unit-test
@@ -201,7 +200,7 @@ jobs:
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-pr
-          dockerfile: git-dev-pr/docker/php/Dockerfile
+          dockerfile: git-dev-pr/docker/Dockerfile
           tag_file: version-pr/version
   #
   # Dev Commit Jobs
@@ -261,7 +260,6 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan"]
-  # TODO Nginx build
   - name: build
     serial_groups:
       - unit-test
@@ -277,5 +275,5 @@ jobs:
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-commit
-          dockerfile: git-dev-commit/docker/php/Dockerfile
+          dockerfile: git-dev-commit/docker/Dockerfile
           # TODO tag with versioning
