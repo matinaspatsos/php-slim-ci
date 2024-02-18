@@ -130,7 +130,6 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan"]
-  # TODO Nginx build
   - name: build-pr
     serial_groups:
       - unit-test
@@ -217,7 +216,6 @@ jobs:
           run:
             path: bearer
             args: ["scan", "/tmp/scan"]
-  # TODO Nginx build
   - name: build
     serial_groups:
       - unit-test
