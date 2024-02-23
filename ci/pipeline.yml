@@ -29,6 +29,9 @@ resources:
       base_branch: dev
       access_token: ((github-access-token))
   # See https://github.com/concourse/docker-image-resource
+  # The "docker-image" resource type does not support arm64, only x86 in AWS
+  # You will need to use the resource "docker-image", if you need "registry-image"
+  # but it increased by build time from 2ms to over 20ms
   - name: ecr-app-php-image
     type: docker-image
     icon: docker
@@ -191,8 +194,10 @@ jobs:
                 #!/bin/sh
                 # Gets datetime from last step
                 DATETIME=$(cat datetime/version)
+
                 # Gets PR number from git metadata
                 PR=$(jq -r '.pr' git-dev-pr/.git/resource/version.json)
+
                 # Creates version file
                 /bin/echo "$DATETIME.pr-$PR" > version-pr/version
                 cat version-pr/version
@@ -264,6 +269,7 @@ jobs:
     serial_groups:
       - unit-test
       - sast-scan
+      - build
     # See # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
     plan:
       - get: git-dev-commit
@@ -277,3 +283,40 @@ jobs:
           build: git-dev-commit
           dockerfile: git-dev-commit/docker/Dockerfile
           # TODO tag with versioning
+  - name: deploy
+    serial_groups:
+      - unit-test
+      - sast-scan
+      - build
+    plan:
+      # TODO versioning
+      - get: ecr-app-php-image
+        trigger: true
+        # passed:
+        #   - build
+      - task: deploy
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: amazon/aws-cli
+          inputs:
+            # See https://github.com/concourse/docker-image-resource?tab=readme-ov-file#in-fetch-the-image-from-the-registry
+            # Writes these from other steps onto the image file system
+            - name: ecr-app-php-image
+              path: image
+          params:
+            AWS_ACCESS_KEY_ID: ((aws-token))
+            AWS_SECRET_ACCESS_KEY: ((aws-secret))
+            AWS_REGION: ((aws-region))
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                repository=$(cat image/repository)
+                tag=$(cat image/tag)
+                image="$repository:$tag"
+                echo $image

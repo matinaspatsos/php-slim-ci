@@ -5,6 +5,7 @@ github-access-token: _____
 # AWS auth
 aws-token: _____
 aws-secret: _____
+aws-region: _____
 
 # ECR
 php-slim-ci-ecr-repo: _____
