@@ -29,6 +29,9 @@ resources:
       base_branch: dev
       access_token: ((github-access-token))
   # See https://github.com/concourse/docker-image-resource
+  # The "docker-image" resource type does not support arm64, only x86 in AWS
+  # You will need to use the resource "docker-image", if you need "registry-image"
+  # but it increased by build time from 2m to over 20m
   - name: ecr-app-php-image
     type: docker-image
     icon: docker
@@ -191,8 +194,10 @@ jobs:
                 #!/bin/sh
                 # Gets datetime from last step
                 DATETIME=$(cat datetime/version)
+
                 # Gets PR number from git metadata
                 PR=$(jq -r '.pr' git-dev-pr/.git/resource/version.json)
+
                 # Creates version file
                 /bin/echo "$DATETIME.pr-$PR" > version-pr/version
                 cat version-pr/version
@@ -264,6 +269,7 @@ jobs:
     serial_groups:
       - unit-test
       - sast-scan
+      - build
     # See # See https://ddymko.medium.com/deploy-docker-images-with-concourse-396f7ad23fe2
     plan:
       - get: git-dev-commit
@@ -277,3 +283,68 @@ jobs:
           build: git-dev-commit
           dockerfile: git-dev-commit/docker/Dockerfile
           # TODO tag with versioning
+  - name: deploy
+    serial_groups:
+      - unit-test
+      - sast-scan
+      - build
+    plan:
+      # TODO versioning
+      # Originally, I was getting the resource "docker-image"
+      # However, it with the resource git-dev-commit would cause the pipeline be stuck on "Loading" forever
+      # - get: ecr-app-php-image
+      - get: git-dev-commit
+        trigger: true
+        passed:
+          - build
+      - task: deploy
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: amazon/aws-cli
+          inputs:
+            # Writes these from other steps onto the image file system
+            - name: git-dev-commit
+              path: git-dev-commit
+          params:
+            APP_NAME: php-slim
+            REPOSITORY: ((php-slim-ecr-repo))
+            AWS_ACCESS_KEY_ID: ((aws-token))
+            AWS_SECRET_ACCESS_KEY: ((aws-secret))
+            AWS_REGION: ((aws-region))
+            TASK_EXECUTIONER_ROLE: ((task-executioner-role))
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -e
+
+                tag="latest"
+                image="$REPOSITORY:$tag"
+
+                yum install jq -y
+
+                # Configure AWS credentials
+                aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                aws configure set default.region $AWS_REGION
+
+                # Write the task definition file
+                sed "s|%image%|$image|" git-dev-commit/ci/infra/task-definition.json > task-definition.json
+                sed -i "s|%app-name%|$APP_NAME|g" task-definition.json
+                sed -i "s|%aws-region%|$AWS_REGION|g" task-definition.json
+                sed -i "s|%task-execution-role%|$TASK_EXECUTIONER_ROLE|g" task-definition.json
+
+                # Create task defintion revision
+                REVISION_RESPONSE=$(aws ecs register-task-definition --cli-input-json file://./task-definition.json)
+                REVISION=$(echo $REVISION_RESPONSE | jq -re '.taskDefinition.taskDefinitionArn')
+
+                # Deploy to service
+                cluster=$APP_NAME
+                service="$APP_NAME-service"
+                # TODO get this to exit editor
+                aws ecs update-service --cluster $cluster --service $service --task-definition $REVISION > /dev/null
