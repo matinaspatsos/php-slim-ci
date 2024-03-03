@@ -8,4 +8,8 @@ class Example
   {
     return "test";
   }
+  public function ciCdTest(): int
+  {
+    return 2;
+  }
 }
