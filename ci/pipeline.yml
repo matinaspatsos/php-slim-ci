@@ -15,9 +15,12 @@ resources:
     type: git
     icon: source-branch
     source:
-      # TODO use private repo
-      uri: https://github.com/((github-repo)).git
+      # Using SSH because a.) this repo can be private and b.) I can write to it
+      # See https://concourse-ci.org/tutorial-resources.html#put-steps
+      uri: git@github.com:((github-repo)).git
       branch: dev
+      private_key: |
+        ((github-private-key))
   # See https://github.com/telia-oss/github-pr-resource/tree/9ec47e2d9f28d13a4738ff48f2f40d2a570b251a?tab=readme-ov-file#example
   # See https://www.youtube.com/watch?v=6dbcRfZ94oo
   - name: git-dev-pr
@@ -46,6 +49,18 @@ resources:
       aws_access_key_id: ((aws-token))
       aws_secret_access_key: ((aws-secret))
       repository: ((php-slim-ci-ecr-repo))
+  # See https://github.com/concourse/semver-resource
+  - name: version
+    type: semver
+    icon: tag
+    source:
+      driver: s3
+      bucket: ((s3-bucket))
+      key: ((s3-version-directory))/version
+      access_key_id: ((aws-token))
+      secret_access_key: ((aws-secret))
+      region_name: ((aws-region))
+      initial_version: "0.0.0-rc.0"
   # See https://github.com/dcsg/datetime-version-resource
   - name: datetime
     type: datetime-version
@@ -277,26 +292,58 @@ jobs:
         passed:
           - unit-test
           - sast-scan
+      - get: version
+        # See https://github.com/concourse/semver-resource?tab=readme-ov-file#version-bumping-semantics
+        params:
+          pre: "rc"
       - put: ecr-app-php-image
         # See https://github.com/concourse/docker-image-resource
         params:
           build: git-dev-commit
           dockerfile: git-dev-commit/docker/Dockerfile
-          # TODO tag with versioning
+          tag_file: version/version
+        on_success:
+          do:
+            - put: version
+              params:
+                file: version/version
+            # See https://concourse-ci.org/basic-git-operations.html#creating-commits-and-tags
+            - task: tag
+              config:
+                platform: linux
+                image_resource:
+                  type: registry-image
+                  source:
+                    repository: alpine/git
+                inputs:
+                  - name: git-dev-commit
+                  - name: version
+                outputs:
+                  - name: git-dev-commit
+                run:
+                  path: sh
+                  args:
+                    - -cx
+                    - |
+                      #!/bin/sh
+                      set -e
+                      cd git-dev-commit
+                      git tag "$(cat ../version/version)"
+            # Push tag
+            - put: git-dev-commit
+              params:
+                repository: git-dev-commit
   - name: deploy
     serial_groups:
       - unit-test
       - sast-scan
       - build
     plan:
-      # TODO versioning
-      # Originally, I was getting the resource "docker-image"
-      # However, it with the resource git-dev-commit would cause the pipeline be stuck on "Loading" forever
-      # - get: ecr-app-php-image
-      - get: git-dev-commit
+      - get: version
         trigger: true
         passed:
           - build
+      - get: git-dev-commit
       - task: deploy
         config:
           platform: linux
@@ -307,7 +354,7 @@ jobs:
           inputs:
             # Writes these from other steps onto the image file system
             - name: git-dev-commit
-              path: git-dev-commit
+            - name: version
           params:
             APP_NAME: php-slim
             REPOSITORY: ((php-slim-ecr-repo))
@@ -323,8 +370,9 @@ jobs:
                 #!/bin/bash
                 set -e
 
-                tag="latest"
+                tag="$(cat version/version)"
                 image="$REPOSITORY:$tag"
+                echo $image
 
                 yum install jq -y
 
@@ -346,5 +394,4 @@ jobs:
                 # Deploy to service
                 cluster=$APP_NAME
                 service="$APP_NAME-service"
-                # TODO get this to exit editor
                 aws ecs update-service --cluster $cluster --service $service --task-definition $REVISION > /dev/null

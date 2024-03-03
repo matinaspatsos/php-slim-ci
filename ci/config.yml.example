@@ -1,6 +1,10 @@
 # Github
 github-repo: _____
 github-access-token: _____
+github-private-key: |
+  -----BEGIN OPENSSH PRIVATE KEY-----
+  _____
+  -----END OPENSSH PRIVATE KEY-----
 
 # AWS auth
 aws-token: _____
@@ -11,3 +15,7 @@ aws-region: _____
 php-slim-ci-ecr-repo: _____
 php-slim-ecr-repo: _____
 task-executioner-role: _____
+
+# S3 buckets
+s3-bucket: _____
+s3-version-directory: _____
