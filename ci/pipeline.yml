@@ -4,11 +4,6 @@ resource_types:
     type: docker-image
     source:
       repository: teliaoss/github-pr-resource
-  # See https://github.com/dcsg/datetime-version-resource
-  - name: datetime-version
-    type: registry-image
-    source:
-      repository: dcsg/datetime-version-resource
 
 resources:
   - name: git-dev-commit
@@ -61,13 +56,17 @@ resources:
       secret_access_key: ((aws-secret))
       region_name: ((aws-region))
       initial_version: "0.0.0-rc.0"
-  # See https://github.com/dcsg/datetime-version-resource
-  - name: datetime
-    type: datetime-version
-    icon: clock-outline
+  - name: version-pr
+    type: semver
+    icon: tag
     source:
-      timezone: "America/New_York"
-      format: "20060102-150405"
+      driver: s3
+      bucket: ((s3-bucket))
+      key: ((s3-version-directory))/version-pr
+      access_key_id: ((aws-token))
+      secret_access_key: ((aws-secret))
+      region_name: ((aws-region))
+      initial_version: "0.0.0-pr.0"
 
 jobs:
   #
@@ -165,17 +164,22 @@ jobs:
     serial_groups:
       - unit-test
       - sast-scan
+      - build-pr
     on_failure:
       put: git-dev-pr
       params:
         path: git-dev-pr
         status: failure
     on_success:
-      put: git-dev-pr
-      params:
-        path: git-dev-pr
-        status: success
-        comment_file: version-pr/version
+      do:
+        - put: version-pr
+          params:
+            file: version-pr/version
+        - put: git-dev-pr
+          params:
+            path: git-dev-pr
+            status: success
+            comment: "Built docker image"
     plan:
       # See https://github.com/telia-oss/github-pr-resource?tab=readme-ov-file#example
       - get: git-dev-pr
@@ -184,7 +188,7 @@ jobs:
         passed:
           - unit-test-pr
           - sast-scan-pr
-      - put: datetime
+      - get: version-pr
       # See https://concourse-ci.org/tutorial-inputs-outputs.html
       - task: version
         config:
@@ -197,7 +201,7 @@ jobs:
           inputs:
             # Writes these from other steps onto the image file system
             - name: git-dev-pr
-            - name: datetime
+            - name: version-pr
           outputs:
             # This creates a directory that is shared with other steps
             - name: version-pr
@@ -207,14 +211,13 @@ jobs:
               - -cx
               - |
                 #!/bin/sh
-                # Gets datetime from last step
-                DATETIME=$(cat datetime/version)
+                set -e
 
                 # Gets PR number from git metadata
                 PR=$(jq -r '.pr' git-dev-pr/.git/resource/version.json)
 
                 # Creates version file
-                /bin/echo "$DATETIME.pr-$PR" > version-pr/version
+                /bin/echo "0.0.0-pr.$PR" > version-pr/version
                 cat version-pr/version
       - put: ecr-app-php-image
         # See https://github.com/concourse/docker-image-resource
@@ -222,6 +225,69 @@ jobs:
           build: git-dev-pr
           dockerfile: git-dev-pr/docker/Dockerfile
           tag_file: version-pr/version
+  - name: deploy-pr
+    serial_groups:
+      - unit-test-pr
+      - sast-scan-pr
+      - build-pr
+    plan:
+      - get: version-pr
+        passed:
+          - build-pr
+      - get: git-dev-pr
+      - task: deploy
+        config:
+          platform: linux
+          image_resource:
+            type: registry-image
+            source:
+              repository: amazon/aws-cli
+          inputs:
+            # Writes these from other steps onto the image file system
+            - name: git-dev-pr
+              path: git
+            - name: version-pr
+              path: version
+          params:
+            APP_NAME: php-slim
+            REPOSITORY: ((php-slim-ecr-repo))
+            AWS_ACCESS_KEY_ID: ((aws-token))
+            AWS_SECRET_ACCESS_KEY: ((aws-secret))
+            AWS_REGION: ((aws-region))
+            TASK_EXECUTIONER_ROLE: ((task-executioner-role))
+          run:
+            path: bash
+            args:
+              - -c
+              - |
+                #!/bin/bash
+                set -e
+
+                tag="$(cat version/version)"
+                image="$REPOSITORY:$tag"
+                echo $image
+
+                yum install jq -y
+
+                # Configure AWS credentials
+                aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                aws configure set default.region $AWS_REGION
+
+                # Write the task definition file
+                sed "s|%image%|$image|" git/ci/infra/task-definition.json > task-definition.json
+                sed -i "s|%app-name%|$APP_NAME|g" task-definition.json
+                sed -i "s|%aws-region%|$AWS_REGION|g" task-definition.json
+                sed -i "s|%task-execution-role%|$TASK_EXECUTIONER_ROLE|g" task-definition.json
+
+                # Create task defintion revision
+                REVISION_RESPONSE=$(aws ecs register-task-definition --cli-input-json file://./task-definition.json)
+                REVISION=$(echo $REVISION_RESPONSE | jq -re '.taskDefinition.taskDefinitionArn')
+
+                # Deploy to service
+                cluster=$APP_NAME
+                service="$APP_NAME-service"
+                aws ecs update-service --cluster $cluster --service $service --task-definition $REVISION > /dev/null
   #
   # Dev Commit Jobs
   #
@@ -354,6 +420,7 @@ jobs:
           inputs:
             # Writes these from other steps onto the image file system
             - name: git-dev-commit
+              path: git
             - name: version
           params:
             APP_NAME: php-slim
@@ -382,7 +449,7 @@ jobs:
                 aws configure set default.region $AWS_REGION
 
                 # Write the task definition file
-                sed "s|%image%|$image|" git-dev-commit/ci/infra/task-definition.json > task-definition.json
+                sed "s|%image%|$image|" git/ci/infra/task-definition.json > task-definition.json
                 sed -i "s|%app-name%|$APP_NAME|g" task-definition.json
                 sed -i "s|%aws-region%|$AWS_REGION|g" task-definition.json
                 sed -i "s|%task-execution-role%|$TASK_EXECUTIONER_ROLE|g" task-definition.json
