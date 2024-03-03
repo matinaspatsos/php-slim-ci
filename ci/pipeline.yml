@@ -339,14 +339,11 @@ jobs:
       - sast-scan
       - build
     plan:
-      # TODO versioning
-      # Originally, I was getting the resource "docker-image"
-      # However, it with the resource git-dev-commit would cause the pipeline be stuck on "Loading" forever
-      # - get: ecr-app-php-image
-      - get: git-dev-commit
+      - get: version
         trigger: true
         passed:
           - build
+      - get: git-dev-commit
       - task: deploy
         config:
           platform: linux
@@ -357,7 +354,7 @@ jobs:
           inputs:
             # Writes these from other steps onto the image file system
             - name: git-dev-commit
-              path: git-dev-commit
+            - name: version
           params:
             APP_NAME: php-slim
             REPOSITORY: ((php-slim-ecr-repo))
@@ -373,8 +370,9 @@ jobs:
                 #!/bin/bash
                 set -e
 
-                tag="latest"
+                tag="$(cat version/version)"
                 image="$REPOSITORY:$tag"
+                echo $image
 
                 yum install jq -y
 
