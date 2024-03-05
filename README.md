@@ -9,8 +9,11 @@
 
 CI/CD:
 
+-   AWS
 -   [Concourse CI](https://concourse-ci.org/)
 -   [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+-   [AWS Cli](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+-   [Terraform](https://developer.hashicorp.com/terraform/install)
 
 ## Getting Started
 
@@ -47,6 +50,7 @@ For CI/CD:
 
 -   [Docker](https://code.visualstudio.com/docs/containers/overview)
 -   [Concourse CI Pipeline Editor](https://marketplace.visualstudio.com/items?itemName=vmware.vscode-concourse)
+-   [HashiCorp Terraform](https://marketplace.visualstudio.com/items?itemName=HashiCorp.terraform)
 
 ### Using the Debugger in VSCode
 
@@ -185,3 +189,26 @@ Misc examples:
 
 -   https://concourse-ci.org/building-and-pushing-an-image.html
 -   https://concourse-ci.org/building-an-image-and-using-it-in-a-task.html
+
+### Terraform
+
+```shell
+terraform init
+terraform validate
+# See note below applying
+terraform apply -var="php_slim_image=XXXXXXXXXXX.dkr.ecr.us-east-2.amazonaws.com/php-slim:version"
+```
+
+If you modified the task definition in the terraform files, it will create a new definition, and delete your older definition. To stop it from deleting the older version, run this before the `apply` command:
+
+```shell
+terraform state rm aws_ecs_task_definition.php-slim-task-definition
+```
+
+See https://stackoverflow.com/questions/66255020/how-to-preserve-older-aws-ecs-taskdefinition-revision-when-creating-creating-a-n
+
+This is the command to delete your environment, but it won't remove any task definitions that you removed from state.
+
+```shell
+terraform destroy
+```
