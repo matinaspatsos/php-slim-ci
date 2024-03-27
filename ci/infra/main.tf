@@ -127,9 +127,17 @@ resource "aws_ecs_task_definition" "php_slim_task_definition" {
   execution_role_arn = data.aws_iam_role.php_slim_ecs_task_execution_role.arn
 }
 
+resource "aws_ecs_cluster" "php_sli_cluster" {
+  name = "php-slim-cluster"
+
+  tags = {
+    app = "php-slim"
+  }
+}
+
 resource "aws_ecs_service" "php_slim_service" {
   name            = "php-slim-service"
-  cluster         = "php-slim"
+  cluster         = aws_ecs_cluster.php_sli_cluster.name
   task_definition = aws_ecs_task_definition.php_slim_task_definition.arn
 
   launch_type      = "FARGATE"
