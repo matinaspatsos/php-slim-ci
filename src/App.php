@@ -19,11 +19,15 @@ class App
     // TODO update me
     $this->app->addErrorMiddleware(true, true, true);
 
-    // TODO separate router
     $this->app->get('/hello/{name}', function (Request $request, Response $response, $args) {
       $name = $args['name'];
-      $response->getBody()->write("Hello, $name");
-      return $response;
+      $response->getBody()->write(json_encode(['message' => 'Hello ' . $name]));
+      return $response->withHeader('Content-Type', 'application/json');
+    });
+
+    $this->app->get('/', function (Request $request, Response $response) {
+      $response->getBody()->write(json_encode(['ping' => 'pong!']));
+      return $response->withHeader('Content-Type', 'application/json');
     });
   }
 
